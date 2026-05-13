@@ -1,0 +1,87 @@
+<script>
+  /* ---------- CONFIGURACIÓN ---------- */
+  const API_BASE = 'https://script.google.com/macros/s/AKfycbyKQQe9Zx_8KUOvu7jg9tggba  TCtSVNx-79qyqmrNcr7SMsl6xy8DgSEFMUAdcWQfdX/exec';
+  const HEADERS = {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest'   /* ayuda al backend a detectar CSRF */
+  };
+
+  /* ---------- PETICIÓN POST ---------- */
+  async function postJSON(action, payload) {
+      const res = await fetch(API_BASE, {
+          method: 'POST',
+          headers: HEADERS,
+          body: JSON.stringify({ action, ...payload })
+      });
+      return await res.json();   // siempre JSON {status:'success'|'error', ...}
+  }
+
+  /* ---------- CARGAR DOCENTES ---------- */
+  async function cargarDocentes() {
+      emailSelect.innerHTML = '<option>Cargando...</option>';
+      try {
+          const data = await postJSON('getDocentes', {});   // sin payload
+          if (data.status !== 'success') throw new Error(data.message);
+          emailSelect.innerHTML = '<option value="">-- Selecciona tu correo
+  --</option>';
+          data.docentes.forEach(d => {
+              const opt = document.createElement('option');
+              opt.value = d.email;
+              opt.textContent = `${d.nombre} (${d.email})`;
+              emailSelect.appendChild(opt);
+          });
+      } catch (e) {
+          console.error(e);
+          emailSelect.innerHTML = '<option value="">❌ Error cargando
+  docentes</option>';
+          msgDiv.innerHTML = `<div class="error">Error de conexión. Verifica la URL o   tu internet.</div>`;
+      }
+  }
+
+  /* ---------- GENERAR TOKEN ---------- */
+  async function generarToken(email, tipo) {
+      if (!deviceFingerprint) await getDeviceFingerprint();
+
+      const payload = {
+          email,
+          tipo,
+          fingerprint: deviceFingerprint,
+          // timestamp añadido para evitar caché (no va en la URL)
+          t: Date.now()
+      };
+      return await postJSON('generarToken', payload);
+  }
+
+  /* ---------- MANEJAR BOTONES ---------- */
+  async function manejarGenerar(tipo) {
+      msgDiv.innerHTML = '';
+      qrPanel.style.display = 'none';
+      const email = emailSelect.value;
+      if (!email || email.includes('❌')) {
+          msgDiv.innerHTML = '<div class="error">Selecciona un correo válido.</div>';          return;
+      }
+      btnEntrada.disabled = true;
+      btnSalida.disabled = true;
+      const btn = (tipo === 'entrada') ? btnEntrada : btnSalida;
+      const txtOriginal = btn.textContent;
+      btn.textContent = '⏳ Generando...';
+
+      try {
+          const res = await generarToken(email, tipo);
+          if (res.status === 'success') {
+              mostrarQR(res.token, email, tipo);
+          } else {
+              msgDiv.innerHTML = `<div class="error">❌ ${res.message}</div>`;
+          }
+      } catch (e) {
+          console.error(e);
+          msgDiv.innerHTML = `<div class="error">❌ Error al comunicarse con el
+  servidor.</div>`;
+      } finally {
+          btnEntrada.disabled = false;
+          btnSalida.disabled = false;
+          btnEntrada.textContent = '📥 Marcar Entrada';
+          btnSalida.textContent = '📤 Marcar Salida';
+      }
+  }
+  </script>

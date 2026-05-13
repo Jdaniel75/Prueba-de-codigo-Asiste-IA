@@ -1,0 +1,54 @@
+<script>
+  const API_BASE = 'https://script.google.com/macros/s/AKfycbyKQQe9Zx_8KUOvu7jg9tggba  TCtSVNx-79qyqmrNcr7SMsl6xy8DgSEFMUAdcWQfdX/exec';
+  const HEADERS = {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest'
+  };
+
+  async function postJSON(action, payload) {
+      const res = await fetch(API_BASE, {
+          method: 'POST',
+          headers: HEADERS,
+          body: JSON.stringify({ action, ...payload })
+      });
+      return await res.json();
+  }
+
+  async function onScanSuccess(decodedText, pin) {
+      if (escaneando) return;
+      escaneando = true;
+
+      const msg = document.getElementById('mensaje');
+      msg.style.display = 'block';
+      msg.className = '';
+      msg.textContent = 'Validando con el servidor... ⏳';
+      document.getElementById('reader').style.borderColor = '#f59e0b';
+
+      try {
+          const partes = decodedText.split('|');
+          if (partes.length !== 3) throw new Error('QR no válido para este
+  sistema.');
+
+          const [token, email, tipo] = partes;
+          const payload = { token, email, tipo, pin };
+          const res = await postJSON('registrar', payload);
+
+          if (res.status !== 'success') throw new Error(res.message);
+          msg.className = 'exito';
+          msg.textContent = res.mensaje;
+          document.getElementById('reader').style.borderColor = '#10b981';
+          reproducirBeep();
+      } catch (e) {
+          console.error(e);
+          msg.className = 'error';
+          msg.textContent = `❌ ${e.message}`;
+          document.getElementById('reader').style.borderColor = '#ef4444';
+      }
+
+      setTimeout(() => {
+          escaneando = false;
+          msg.style.display = 'none';
+          document.getElementById('reader').style.borderColor = '#334155';
+      }, 3000);
+  }
+  </script>
