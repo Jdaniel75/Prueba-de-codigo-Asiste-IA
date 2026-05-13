@@ -58,7 +58,8 @@
       qrPanel.style.display = 'none';
       const email = emailSelect.value;
       if (!email || email.includes('❌')) {
-          msgDiv.innerHTML = '<div class="error">Selecciona un correo válido.</div>';          return;
+          msgDiv.innerHTML = '// Versión corregida (una sola línea)
+  emailSelect.innerHTML = '<option value="">-- Selecciona tu correo --</option>';          return;
       }
       btnEntrada.disabled = true;
       btnSalida.disabled = true;
